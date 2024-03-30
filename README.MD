@@ -25,7 +25,7 @@ Component's functionality:
 - receive FIX requests, convert them and pass to the Order Processing Service (OPS).
 - receive SOR requests from the system, convert them into FIX and pass to SOR.
 - receive SOR requests from FIX, convert them and pass to OPS.
-- 
+
 
 ### REST API gateway
 This is a simple gateway that allows to serve public API requests, such as CancelOrder. 
@@ -95,16 +95,17 @@ This is a very brief description; the data definition contains only two example 
 Tech stack: Java 17, Maven, Spring Boot 3.2 (Spring Data, Spring MVC, Spring Metrics, Spring Security).
 
 ### Models
-
+```
 OrderHistory {
     @NonEmpty String orderId,
     @NotNull Instant timestamp
 }
+
 OrderHistoryDTO {
     String orderId,
     Instant timestamp
 }
-
+```
 
 ### Security
 
@@ -114,7 +115,7 @@ Authorization & RBAC.
 
 Rest API has next endpoints:
 1. Get the order's audit data for the given order. This should return a collection or stream of OrderHistoryDTO.
-
+```
 GET /v1/ordershistory/<order_id>
 Headers:
 - bearer authorization token
@@ -124,7 +125,9 @@ Status code: 200
 Exceptions:
 - 403 Unauthorized
 Format: JSON
+```
 Example:
+```
 [
     {
         "order_id": 12345,
@@ -135,24 +138,26 @@ Example:
         "timestamp": "2024-03-30T18:21:01Z"
     }
 ]
+```
 
 ### RabbitMQ
 
 1. OrderUpdated listener
 
-Exchange name: order_updated
-Queue name: order_updated.order_history_service
-DLQ: order_updated.order_history_service.dlq
-Validations: as per model
+- Exchange name: order_updated
+- Queue name: order_updated.order_history_service
+- DLQ: order_updated.order_history_service.dlq
+- Validations: as per model; invalid events should be rejected and go to DLQ
 
 ### Databases
 
 1. OrdersHistory
 
-Type: Cassandra
-Keyspace: ordershistory
-Table: ordershistory
-Keys: partition key order_id, cluster key timestamp
+- Type: Cassandra
+- Keyspace: ordershistory
+- Table: ordershistory
+- Keys: partition key order_id, cluster key timestamp
+
 Operations:
 - insert
 - select * where order_id = <order_id> order by timestamp descending
@@ -171,14 +176,20 @@ Alerts:
 1. When new items arrived into order_updated.order_history_service.dlq.
 Severity: high
 Frequency: 1 min
-2. When error logs appears in the log
+2. When error appears in the log
 Severity: high
 Frequency: 5 min
+3. When Unauthorized error appears in the log
+Severity: critical
+Frequency: 1 min
 
-Grafana dashboards:
+Dashboards:
 1. REST RPM success/unsuccess
-2. MQ events/sec
-3. MQ queue size
-4. DLQ count
+2. Average REST response time (per last hour)
+3. Average REST response time (per last week)
+4. MQ events/sec
+5. MQ queue size
+6. DLQ count
+7. Database size
 
 
