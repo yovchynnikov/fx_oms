@@ -90,5 +90,95 @@ It's a distributed cache that allows to store some client's information to reduc
 
 ## Order History Service
 
+This is a very brief description; the data definition contains only two example fields.
+
+Tech stack: Java 17, Maven, Spring Boot 3.2 (Spring Data, Spring MVC, Spring Metrics, Spring Security).
+
+### Models
+
+OrderHistory {
+    @NonEmpty String orderId,
+    @NotNull Instant timestamp
+}
+OrderHistoryDTO {
+    String orderId,
+    Instant timestamp
+}
+
+
+### Security
+
+Authorization & RBAC.
+
+### REST API
+
+Rest API has next endpoints:
+1. Get the order's audit data for the given order. This should return a collection or stream of OrderHistoryDTO.
+
+GET /v1/ordershistory/<order_id>
+Headers:
+- bearer authorization token
+Roles:
+- FX_OMS_AUDIT_READ
+Status code: 200
+Exceptions:
+- 403 Unauthorized
+Format: JSON
+Example:
+[
+    {
+        "order_id": 12345,
+        "timestamp": "2024-03-30T18:26:47Z"
+    },
+    {
+        "order_id": 12345,
+        "timestamp": "2024-03-30T18:21:01Z"
+    }
+]
+
+### RabbitMQ
+
+1. OrderUpdated listener
+
+Exchange name: order_updated
+Queue name: order_updated.order_history_service
+DLQ: order_updated.order_history_service.dlq
+Validations: as per model
+
+### Databases
+
+1. OrdersHistory
+
+Type: Cassandra
+Keyspace: ordershistory
+Table: ordershistory
+Keys: partition key order_id, cluster key timestamp
+Operations:
+- insert
+- select * where order_id = <order_id> order by timestamp descending
+
+### Monitoring
+
+Service should log all exceptional situation in brief and concise way. The pattern for the whole system will be described in system documentation.
+
+Metrics:
+- CPU
+- Memory
+- successful requests (rpm, count)
+- unsuccessful requests (rpm, count)
+
+Alerts:
+1. When new items arrived into order_updated.order_history_service.dlq.
+Severity: high
+Frequency: 1 min
+2. When error logs appears in the log
+Severity: high
+Frequency: 5 min
+
+Grafana dashboards:
+1. REST RPM success/unsuccess
+2. MQ events/sec
+3. MQ queue size
+4. DLQ count
 
 
